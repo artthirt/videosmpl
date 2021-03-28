@@ -9,6 +9,7 @@
 
 #include <opencv2/opencv.hpp>
 
+#include "videov4l2.h"
 #include "pool_send.h"
 
 using namespace std;
@@ -19,7 +20,7 @@ int main(int argc, char *argv[])
 #if 0
     std::ifstream f("d:\\develop\\dir16\\videosmpl\\data\\tmp.bin", std::ios_base::binary);
 #else
-    std::ifstream f("/dev/video0", std::ios_base::binary);
+    //std::ifstream f("/dev/video0", std::ios_base::binary);
 #endif
 
 //    f.seekg(0, std::ios_base::end);
@@ -27,9 +28,13 @@ int main(int argc, char *argv[])
 //    f.seekg(0, std::ios_base::beg);
 	//FILE *fw = fopen("tmp.bin", "w");
 
-    if(!f.is_open()){
+//    if(!f.is_open()){
+//        return 1;
+//    }
+
+    videov4l2 v;
+    if(!v.open())
         return 1;
-    }
 
     int w = 2688;
     int h = 1944;
@@ -38,7 +43,7 @@ int main(int argc, char *argv[])
     std::vector<uint8_t> buf;
     buf.resize(w * h * 2);
 
-    //cv::namedWindow("ww", cv::WINDOW_NORMAL | cv::WINDOW_FREERATIO);
+    cv::namedWindow("ww", cv::WINDOW_NORMAL | cv::WINDOW_FREERATIO);
 
     auto fn = [&mat, &buf, &w, &h](int d){
         h += d;
@@ -67,12 +72,17 @@ int main(int argc, char *argv[])
 
     pool.start();
 
-    int s = 0, size;
+    cv::Mat out;
+
+    v.set_exposure(200);
+
+    int s = 0;
     while(1){
         if(read){
-            f.read((char*)buf.data(), buf.size());
-            s = f.gcount();
-            size = s;
+            //f.read((char*)buf.data(), buf.size());
+            //s = f.gcount();
+            out = v.get();
+            s = !out.empty();
         }else{
             s = 1;
         }
@@ -83,7 +93,9 @@ int main(int argc, char *argv[])
 //            }
 //            std::cout << "\n";
 
-            memcpy(mat.ptr(), buf.data(), size);
+            mat = out;
+
+            //memcpy(mat.ptr(), buf.data(), size);
             mat2 = 16 * mat;
             cv::cvtColor(mat2, mat2, cv::COLOR_BayerRG2BGR);
             pool.push_frame(mat2);
@@ -111,13 +123,7 @@ int main(int argc, char *argv[])
 	mat2.convertTo(mat3, CV_8U, 1./256.);
 	cv::imwrite("1.bmp", mat3);
 
-	while(1){
-        //cv::imshow("ww", mat2);
-		cv::waitKey(100);
-	}
-
-//    fclose(fw);
-    f.close();
+    v.close();
 
     cout << "Hello World!" << endl;
     return 0;
