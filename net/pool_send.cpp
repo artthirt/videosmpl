@@ -1,12 +1,14 @@
 #include "pool_send.h"
 
+#include <functional>
+
 #ifdef _JPEG
 #include "jpeg_encode.h"
 #else
 #include "opj_encode.h"
 #endif
 
-const int default_compression	= 20;
+const int default_compression	= 50;
 const size_t max_list_size		= 3;
 
 ///////////////////////////////////////////
@@ -97,16 +99,24 @@ void pool_send::push_frame(const Mat& mat)
 	m_mutex.unlock();
 }
 
-void pool_send::run(){
+void pool_send::run()
+{
+    using namespace boost::asio;
 
-	m_socket = new boost::asio::ip::udp::socket(m_io);
-	m_socket->open(boost::asio::ip::udp::v4());
+    m_socket = new ip::udp::socket(m_io);
+    m_socket->open(ip::udp::v4());
+
+    m_socket->bind(ip::udp::endpoint(ip::udp::v4(), 10000));
 
     std::thread thread(std::bind(&pool_send::run2, this));
+
+    std::thread thrrcv(std::bind(&pool_send::doReceive, this));
 
 	m_io.run();
 
 	thread.join();
+    thrrcv.join();
+
 }
 void pool_send::run2()
 {
@@ -118,7 +128,12 @@ void pool_send::run2()
 void pool_send::close()
 {
 	m_io.stop();
-	m_done = true;
+    m_done = true;
+}
+
+void pool_send::set_exposure(funsetexposure exp)
+{
+    mFunExposure = exp;
 }
 
 void pool_send::check_frames()
@@ -142,6 +157,7 @@ void pool_send::check_frames()
 		}
 	}
 }
+
 void pool_send::send_data(const bytearray& data)
 {
 	if(!data.size() || !m_socket)
@@ -154,5 +170,49 @@ void pool_send::write_handler(boost::system::error_code error, size_t size)
 {
 	if(error !=0 ){
 		cout << error << endl;
-	}
+    }
+}
+
+void pool_send::handleReceive(boost::system::error_code error, size_t sz)
+{
+    size_t size = m_socket->available();
+
+    bytearray buffer;
+    buffer.resize(size);
+
+    m_socket->receive(boost::asio::buffer(buffer, size));
+
+    if(!buffer.empty()){
+        int *vals = reinterpret_cast<int*>(buffer.data());
+        std::cout << vals[0] << "\n";
+    }
+}
+
+void pool_send::doReceive()
+{
+    bytearray pkt, cp;
+    size_t packetSize = 0;
+    pkt.resize(65536);
+    boost::asio::ip::udp::endpoint ep;
+    for(;!m_done;){
+        packetSize = m_socket->receive_from(boost::asio::buffer((pkt)), ep);
+        if(packetSize){
+            cp.resize(packetSize);
+            std::copy(pkt.begin(), pkt.begin() + packetSize, cp.begin());
+            parseData(cp);
+        }else{
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
+    }
+}
+
+void pool_send::parseData(const bytearray &data)
+{
+    if(!data.empty()){
+        const int *vals = reinterpret_cast<const int*>(data.data());
+        std::cout << vals[0] << "\n";
+        if(mFunExposure){
+            mFunExposure(vals[0]);
+        }
+    }
 }

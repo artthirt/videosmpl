@@ -7,8 +7,10 @@
 #include <mutex>
 #include <queue>
 #include <thread>
+#include <functional>
 
 #include <boost/asio/ip/udp.hpp>
+#include <boost/asio/error.hpp>
 
 #include "common.h"
 
@@ -19,6 +21,8 @@
 #endif
 
 #include "asf_stream.h"
+
+typedef std::function<void(int)> funsetexposure;
 
 struct Frame{
 	Frame();
@@ -49,6 +53,8 @@ public:
 	void run2();
 	void close();
 
+    void set_exposure(funsetexposure exp);
+
 	void check_frames();
 	void send_data(const bytearray& data);
 	void write_handler(boost::system::error_code error, size_t size);
@@ -63,7 +69,13 @@ private:
 	boost::asio::ip::udp::endpoint m_destination;
 	boost::asio::io_service m_io;
 
+    funsetexposure mFunExposure;
+
     std::thread mThread;
+
+    void handleReceive(boost::system::error_code error, size_t sz);
+    void doReceive();
+    void parseData(const bytearray& data);
 };
 
 #endif // POOL_SEND

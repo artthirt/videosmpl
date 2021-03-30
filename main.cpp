@@ -15,6 +15,23 @@
 using namespace std;
 using namespace cv;
 
+void initLUT(std::vector<uint16_t> &V)
+{
+    V.resize(65536);
+    for(int i = 0; i < 65536; ++i){
+        float t = 1. * i/65535;
+        float v = pow(t, 1/1.5);
+        V[i] = 65535. * v;
+    }
+}
+
+void setLut(cv::Mat& mat, const std::vector<uint16_t>& LUT)
+{
+    mat.forEach<uint16_t>([&](uint16_t& p, const int pos[]){
+        p = LUT[p];
+    });
+}
+
 int main(int argc, char *argv[])
 {
 #if 0
@@ -32,6 +49,9 @@ int main(int argc, char *argv[])
 //        return 1;
 //    }
 
+    std::vector<uint16_t> LUT;
+    initLUT(LUT);
+
     videov4l2 v;
     if(!v.open())
         return 1;
@@ -43,7 +63,7 @@ int main(int argc, char *argv[])
     std::vector<uint8_t> buf;
     buf.resize(w * h * 2);
 
-    cv::namedWindow("ww", cv::WINDOW_NORMAL | cv::WINDOW_FREERATIO);
+    //cv::namedWindow("ww", cv::WINDOW_NORMAL | cv::WINDOW_FREERATIO);
 
     auto fn = [&mat, &buf, &w, &h](int d){
         h += d;
@@ -76,6 +96,12 @@ int main(int argc, char *argv[])
 
     v.set_exposure(200);
 
+    auto fne = [&v](int val){
+        v.set_exposure(val);
+    };
+
+    pool.set_exposure(fne);
+
     int s = 0;
     while(1){
         if(read){
@@ -97,9 +123,10 @@ int main(int argc, char *argv[])
 
             //memcpy(mat.ptr(), buf.data(), size);
             mat2 = 16 * mat;
+            setLut(mat2, LUT);
             cv::cvtColor(mat2, mat2, cv::COLOR_BayerRG2BGR);
             pool.push_frame(mat2);
-            cv::imshow("ww", mat2);
+            //cv::imshow("ww", mat2);
             int key = cv::waitKey(5);
             if(key == 'c'){
                 break;

@@ -207,6 +207,8 @@ vectorstream asf_stream::generate_stream(const bytearray &data)
 
 	protocol.set_serial(m_serial++);
 
+    //std::cout << (uint16_t)data[0] << (uint16_t)data[1] << "\n";
+
 	do{
 		bytearray buffer;
 		datastream stream(&buffer);
