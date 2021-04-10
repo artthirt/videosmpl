@@ -5,6 +5,8 @@
 #include <vector>
 #include <time.h>
 #include <unistd.h>
+#include <chrono>
+#include <thread>
 
 typedef std::vector< char > bytearray;
 typedef std::vector< u_char > ubytearray;
@@ -44,6 +46,19 @@ template<typename T>
 inline void CLEAR(T& val)
 {
 	std::fill((char*)&val, (char*)&val + sizeof(T), '\0');
+}
+
+typedef std::chrono::system_clock::time_point timepoint;
+
+inline timepoint getNow(){
+    return std::chrono::high_resolution_clock::now();
+}
+
+inline double getDuration(const timepoint& tm)
+{
+    auto d = std::chrono::high_resolution_clock::now() - tm;
+    double d1 = std::chrono::duration_cast<std::chrono::microseconds>(d).count();
+    return d1 / 1000;
 }
 
 #endif // COMMON

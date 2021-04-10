@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <thread>
 #include <vector>
+#include <queue>
 #include <libv4l2.h>
 
 #include <opencv2/opencv.hpp>
@@ -32,6 +33,79 @@ void setLut(cv::Mat& mat, const std::vector<uint16_t>& LUT)
     });
 }
 
+struct Worker{
+
+    int mMaxBufferCount = 25;
+    std::queue< Mat > mBuffer;
+    std::mutex mMutex;
+    videov4l2 mVideo;
+
+    std::thread mThread;
+
+    Worker(){
+    }
+
+    ~Worker(){
+        mThread.join();
+    }
+
+    bool open(){
+        if(!mVideo.open())
+            return false;
+
+        run();
+
+        return true;
+    }
+
+    void close(){
+        mVideo.close();
+    }
+
+    void set_exposure(int val){
+        mVideo.set_exposure(val);
+    }
+
+    bool empty() const{
+        return mBuffer.empty();
+    }
+
+    Mat take(){
+        mMutex.lock();
+        Mat m = mBuffer.front();
+        mBuffer.pop();
+        mMutex.unlock();
+        return m;
+    }
+
+    void do_work()
+    {
+        while(1){
+            if(mBuffer.size() > mMaxBufferCount){
+                std::this_thread::sleep_for(std::chrono::milliseconds(32));
+                continue;
+            }
+            auto now = getNow();
+            Mat m = mVideo.get();
+            if(!m.empty()){
+                mMutex.lock();
+                mBuffer.push(m);
+                mMutex.unlock();
+            }
+            double duration = getDuration(now);
+
+            if(duration < 32){
+                std::this_thread::sleep_for(std::chrono::milliseconds(32 - (int)duration));
+            }
+        }
+    }
+
+    void run(){
+        mThread = std::thread(std::bind(&Worker::do_work, this));
+    }
+
+};
+
 int main(int argc, char *argv[])
 {
 #if 0
@@ -52,31 +126,13 @@ int main(int argc, char *argv[])
     std::vector<uint16_t> LUT;
     initLUT(LUT);
 
-    videov4l2 v;
-    if(!v.open())
-        return 1;
-
-    int w = 2688;
-    int h = 1944;
-    cv::Mat mat(h, w, CV_16UC1), mat2, mat3;
-
-    std::vector<uint8_t> buf;
-    buf.resize(w * h * 2);
-
-    //cv::namedWindow("ww", cv::WINDOW_NORMAL | cv::WINDOW_FREERATIO);
-
-    auto fn = [&mat, &buf, &w, &h](int d){
-        h += d;
-        buf.resize(w * h * 2);
-        mat = cv::Mat(h, w, CV_16UC1);
-        printf("width %d height %d\n", w, h);
-    };
-
 	int id = 0;
 
-    bool read = true;
-
     pool_send pool;
+    Worker worker;
+
+    if(!worker.open())
+        return 1;
 
     FileStorage xml("config.xml", FileStorage::READ);
     if(xml.isOpened()){
@@ -92,66 +148,43 @@ int main(int argc, char *argv[])
 
     pool.start();
 
-    cv::Mat out;
+    worker.set_exposure(200);
 
-    v.set_exposure(200);
-
-    auto fne = [&v](int val){
-        v.set_exposure(val);
+    auto fne = [&worker](int val){
+        worker.set_exposure(val);
     };
 
     pool.set_exposure(fne);
 
-    int s = 0;
-    while(1){
-        if(read){
-            //f.read((char*)buf.data(), buf.size());
-            //s = f.gcount();
-            out = v.get();
-            s = !out.empty();
-        }else{
-            s = 1;
-        }
-        if(s > 0){
-//            fwrite(buf.data(), 1, s, fw);
-//            for(int i = 0; i < std::min(10, s); ++i){
-//                std::cout << (uint16_t)buf[i] << " ";
-//            }
-//            std::cout << "\n";
+    double duration = 0;
 
-            mat = out;
+    Mat mat, mat2;
+
+    while(1){
+        {
+            if(worker.empty()){
+                std::this_thread::sleep_for(std::chrono::milliseconds(32));
+                continue;
+            }
+            auto now = getNow();
+
+            mat = worker.take();
 
             //memcpy(mat.ptr(), buf.data(), size);
             mat2 = 16 * mat;
             setLut(mat2, LUT);
             cv::cvtColor(mat2, mat2, cv::COLOR_BayerRG2BGR);
             pool.push_frame(mat2);
-            //cv::imshow("ww", mat2);
-            int key = cv::waitKey(5);
-            if(key == 'c'){
-                break;
-            }
-            if(key == 'r'){
-                read = !read;
-            }
-            if(key == '+'){
-                fn(1);
-            }
-            if(key == '-'){
-                fn(-1);
-            }
 
+            duration = getDuration(now);
+
+            if(duration < 32){
+                std::this_thread::sleep_for(std::chrono::milliseconds(32 - (int)duration));
+            }
 			id++;
-		}else{
-			break;
-		}
+        }
     }
 
-	mat2.convertTo(mat3, CV_8U, 1./256.);
-	cv::imwrite("1.bmp", mat3);
-
-    v.close();
-
-    cout << "Hello World!" << endl;
+    worker.close();
     return 0;
 }
