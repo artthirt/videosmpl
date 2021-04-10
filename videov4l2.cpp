@@ -8,6 +8,8 @@
 #include <sys/types.h>
 #include <sys/mman.h>
 
+#include <thread>
+
 union BS{
     uint32_t ui;
     char c[4];
@@ -120,6 +122,13 @@ void videov4l2::close()
     mIsOpen = false;
 
     if(mFd >= 0){
+
+        int res = 0;
+        for(size_t i = 0; i < mBuffrs.size(); ++i){
+             res = v4l2_munmap(mBuffrs[i].start, mBuffrs[i].length);
+        }
+        mBuffrs.clear();
+
         v4l2_buf_type type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
         xioctl(mFd, VIDIOC_STREAMOFF, &type);
         v4l2_close(mFd);
@@ -131,11 +140,20 @@ cv::Mat videov4l2::get()
 {
     cv::Mat res(mHeight, mWidth, CV_16UC1);
 
+    if(!is_open())
+        return cv::Mat::zeros(mHeight, mWidth, CV_16UC1);
+
+    if(mBuffrs.empty())
+        return cv::Mat::zeros(mHeight, mWidth, CV_16UC1);
+
     v4l2_buffer buf;
     CLEAR(buf);
     buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     buf.memory = V4L2_MEMORY_MMAP;
     xioctl(mFd, VIDIOC_DQBUF, &buf);
+
+    if(mBuffrs.empty() || buf.index > mBuffrs.size())
+        return cv::Mat::zeros(mHeight, mWidth, CV_16UC1);
 
     for(int i = 0; i < mHeight; ++i){
         char *ptr = (char*)mBuffrs[buf.index].start + i * mBytesPerLines;
@@ -174,6 +192,7 @@ void videov4l2::set_resolution_id(int val)
     }
     mResolutionId = val;
     close();
+    //std::this_thread::sleep_for(std::chrono::milliseconds(2000));
     open();
 }
 
