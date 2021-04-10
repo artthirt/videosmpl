@@ -26,7 +26,7 @@ typedef std::function<void(int)> funsetexposure;
 
 struct Frame{
 	Frame();
-	Frame(const cv::Mat& mat);
+    Frame(const cv::Mat& mat, int quality);
 	Frame(const Frame& frame);
 	void run();
 
@@ -61,6 +61,7 @@ public:
 
 private:
 	bool m_done;
+    int mQuality = 50;
 	std::queue< Frame > m_pool;
 	std::mutex m_mutex;
 	int m_serial;

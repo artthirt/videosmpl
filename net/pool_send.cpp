@@ -19,11 +19,11 @@ Frame::Frame()
 	compression = default_compression;
 }
 
-Frame::Frame(const cv::Mat& mat)
+Frame::Frame(const cv::Mat& mat, int quality)
 {
 	done = false;
 	image = mat;
-	compression = default_compression;
+    compression = quality;
 }
 
 Frame::Frame(const Frame& frame)
@@ -39,7 +39,7 @@ void Frame::run()
 {
 #ifdef _JPEG
 	jpeg_encode enc;
-	enc.encode(image, data, 100 - compression);
+    enc.encode(image, data, compression);
 #else
 	encode_frame(image, data, compression);
 #endif
@@ -95,7 +95,7 @@ void pool_send::push_frame(const Mat& mat)
 		m_mutex.unlock();
 		return;
 	}
-	m_pool.push(Frame(mat));
+    m_pool.push(Frame(mat, mQuality));
 	m_mutex.unlock();
 }
 
@@ -210,7 +210,9 @@ void pool_send::parseData(const bytearray &data)
 {
     if(!data.empty()){
         const int *vals = reinterpret_cast<const int*>(data.data());
-        std::cout << vals[0] << "\n";
+        std::cout << "exposure: " << vals[0] << "\n";
+        std::cout << "quality:  " << vals[1] << "\n";
+        mQuality = vals[1];
         if(mFunExposure){
             mFunExposure(vals[0]);
         }
