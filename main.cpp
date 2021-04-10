@@ -66,6 +66,10 @@ struct Worker{
         mVideo.set_exposure(val);
     }
 
+    void setResolutionId(int val){
+        mVideo.set_resolution_id(val);
+    }
+
     bool empty() const{
         return mBuffer.empty();
     }
@@ -150,11 +154,12 @@ int main(int argc, char *argv[])
 
     worker.set_exposure(200);
 
-    auto fne = [&worker](int val){
-        worker.set_exposure(val);
+    auto fne = [&worker](Cntrl val){
+        worker.setResolutionId(val.resolution_id);
+        worker.set_exposure(val.exposure);
     };
 
-    pool.set_exposure(fne);
+    pool.set_ctrl(fne);
 
     double duration = 0;
 

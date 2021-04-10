@@ -131,7 +131,7 @@ void pool_send::close()
     m_done = true;
 }
 
-void pool_send::set_exposure(funsetexposure exp)
+void pool_send::set_ctrl(funsetexposure exp)
 {
     mFunExposure = exp;
 }
@@ -214,7 +214,11 @@ void pool_send::parseData(const bytearray &data)
         std::cout << "quality:  " << vals[1] << "\n";
         mQuality = vals[1];
         if(mFunExposure){
-            mFunExposure(vals[0]);
+            Cntrl cntrl;
+            cntrl.exposure        = vals[0];
+            cntrl.quality         = vals[1];
+            cntrl.resolution_id   = vals[2];
+            mFunExposure(cntrl);
         }
     }
 }

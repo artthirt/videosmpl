@@ -30,6 +30,24 @@ bool videov4l2::is_open() const
     return mIsOpen;
 }
 
+struct Res{
+    int w = 0;
+    int h = 0;
+    Res(){
+
+    }
+    Res(int w, int h){
+        this->w = w;
+        this->h = h;
+    }
+};
+
+const Res Resolutions[] = {
+    Res(1920, 1080),
+    Res(1280, 720),
+    Res(640, 480),
+};
+
 bool videov4l2::open()
 {
     if(mIsOpen)
@@ -40,11 +58,13 @@ bool videov4l2::open()
     if(mFd < 0)
         return false;
 
+    Res r = Resolutions[mResolutionId];
+
     struct v4l2_format      fmt;
     CLEAR(fmt);
     fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    fmt.fmt.pix.width = 1280;
-    fmt.fmt.pix.height = 720;
+    fmt.fmt.pix.width = r.w;
+    fmt.fmt.pix.height = r.h;
     fmt.fmt.pix.pixelformat = 0x30314742;//01GB;
     fmt.fmt.pix.field = V4L2_FIELD_ANY;
     xioctl(mFd, VIDIOC_S_FMT, &fmt);
@@ -145,6 +165,16 @@ void videov4l2::set_exposure(int val)
     ctrls.controls = &ctrl;
 
     xioctl(mFd, VIDIOC_S_EXT_CTRLS, &ctrls);
+}
+
+void videov4l2::set_resolution_id(int val)
+{
+    if(val == mResolutionId){
+        return;
+    }
+    mResolutionId = val;
+    close();
+    open();
 }
 
 bool videov4l2::xioctl(int fd, int request, void *args)

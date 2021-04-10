@@ -22,6 +22,8 @@ public:
     cv::Mat get();
     void set_exposure(int val);
 
+    void set_resolution_id(int val);
+
 private:
     std::string mDev;
     int mFd = 0;
@@ -30,6 +32,8 @@ private:
     int mHeight = 0;
     std::vector<buffer> mBuffrs;
     int mBytesPerLines = 0;
+
+    int mResolutionId = 0;
 
     bool xioctl(int fd, int request, void *args);
 };

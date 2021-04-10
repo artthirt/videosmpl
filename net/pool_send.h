@@ -22,7 +22,13 @@
 
 #include "asf_stream.h"
 
-typedef std::function<void(int)> funsetexposure;
+struct Cntrl{
+    int exposure = 0;
+    int quality = 50;
+    int resolution_id = 0;
+};
+
+typedef std::function<void(Cntrl)> funsetexposure;
 
 struct Frame{
 	Frame();
@@ -53,7 +59,7 @@ public:
 	void run2();
 	void close();
 
-    void set_exposure(funsetexposure exp);
+    void set_ctrl(funsetexposure exp);
 
 	void check_frames();
 	void send_data(const bytearray& data);
