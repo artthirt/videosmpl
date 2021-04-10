@@ -43,9 +43,9 @@ bool videov4l2::open()
     struct v4l2_format      fmt;
     CLEAR(fmt);
     fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    fmt.fmt.pix.width = 1920;
-    fmt.fmt.pix.height = 1080;
-    fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_Y16;
+    fmt.fmt.pix.width = 1280;
+    fmt.fmt.pix.height = 720;
+    fmt.fmt.pix.pixelformat = 0x30314742;//01GB;
     fmt.fmt.pix.field = V4L2_FIELD_ANY;
     xioctl(mFd, VIDIOC_S_FMT, &fmt);
     mWidth = fmt.fmt.pix.width;
