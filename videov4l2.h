@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include <mutex>
 #include <opencv2/opencv.hpp>
 
 struct buffer{
@@ -32,6 +33,7 @@ private:
     int mHeight = 0;
     std::vector<buffer> mBuffrs;
     int mBytesPerLines = 0;
+    std::mutex mMutex;
 
     int mResolutionId = 0;
 

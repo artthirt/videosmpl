@@ -52,6 +52,8 @@ const Res Resolutions[] = {
 
 bool videov4l2::open()
 {
+    std::lock_guard<std::mutex> guard(mMutex);
+
     if(mIsOpen)
         return true;
 
@@ -121,6 +123,8 @@ void videov4l2::close()
 {
     mIsOpen = false;
 
+    std::lock_guard<std::mutex> guard(mMutex);
+
     if(mFd >= 0){
 
         int res = 0;
@@ -146,6 +150,8 @@ cv::Mat videov4l2::get()
     if(mBuffrs.empty())
         return cv::Mat::zeros(mHeight, mWidth, CV_16UC1);
 
+    std::lock_guard<std::mutex> guard(mMutex);
+
     v4l2_buffer buf;
     CLEAR(buf);
     buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -170,6 +176,8 @@ void videov4l2::set_exposure(int val)
 {
     if(!mIsOpen)
         return;
+
+    std::lock_guard<std::mutex> guard(mMutex);
 
     struct v4l2_ext_control ctrl;
     CLEAR(ctrl);
