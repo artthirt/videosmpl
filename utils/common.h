@@ -48,7 +48,11 @@ inline void CLEAR(T& val)
 	std::fill((char*)&val, (char*)&val + sizeof(T), '\0');
 }
 
+#ifdef _MSC_VER
+typedef std::chrono::steady_clock::time_point timepoint;
+#else
 typedef std::chrono::system_clock::time_point timepoint;
+#endif
 
 inline timepoint getNow(){
     return std::chrono::high_resolution_clock::now();

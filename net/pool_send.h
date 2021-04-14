@@ -61,7 +61,7 @@ public:
 
     void set_ctrl(funsetexposure exp);
 
-	void check_frames();
+    bool check_frames();
 	void send_data(const bytearray& data);
 	void write_handler(boost::system::error_code error, size_t size);
 
@@ -75,6 +75,8 @@ private:
 	boost::asio::ip::udp::socket *m_socket;
 	boost::asio::ip::udp::endpoint m_destination;
 	boost::asio::io_service m_io;
+    boost::asio::ip::udp::endpoint mReceivePoint;
+    timepoint mTimeStart;
 
     funsetexposure mFunExposure;
 

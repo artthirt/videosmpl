@@ -58,8 +58,9 @@ pool_send::pool_send()
 	, m_socket(0)
 	, m_serial(1)
 {
-
+    mTimeStart = getNow();
 }
+
 pool_send::~pool_send()
 {
     mThread.join();
@@ -121,8 +122,9 @@ void pool_send::run()
 void pool_send::run2()
 {
 	while(!m_done){
-		check_frames();
-		_msleep(10);
+        if(!check_frames()){
+            _msleep(10);
+        }
 	}
 }
 void pool_send::close()
@@ -136,8 +138,12 @@ void pool_send::set_ctrl(funsetexposure exp)
     mFunExposure = exp;
 }
 
-void pool_send::check_frames()
+bool pool_send::check_frames()
 {
+    if(m_pool.empty())
+        return false;
+
+    bool send = false;
 	bytearray data;
 	m_mutex.lock();
 	if(m_pool.size()){
@@ -154,15 +160,24 @@ void pool_send::check_frames()
 
 		for(size_t i = 0; i < vstream.size(); i++){
 			send_data(vstream[i]);
+            send = true;
 		}
 	}
+    return send;
 }
 
 void pool_send::send_data(const bytearray& data)
 {
-	if(!data.size() || !m_socket)
+    if(!data.size() || !m_socket || !mReceivePoint.port())
 		return;
-	size_t res = m_socket->send_to(boost::asio::buffer(data), m_destination);
+
+    if(getDuration(mTimeStart) > 2 * 1000){
+        mReceivePoint = boost::asio::ip::udp::endpoint();
+    }
+
+    boost::asio::socket_base::message_flags flags = 0;
+    boost::system::error_code err;
+    size_t res = m_socket->send_to(boost::asio::buffer(data), mReceivePoint, flags, err);
 	//cout << res << endl;
 }
 
@@ -197,6 +212,7 @@ void pool_send::doReceive()
     for(;!m_done;){
         packetSize = m_socket->receive_from(boost::asio::buffer((pkt)), ep);
         if(packetSize){
+            mReceivePoint = ep;
             cp.resize(packetSize);
             std::copy(pkt.begin(), pkt.begin() + packetSize, cp.begin());
             parseData(cp);
@@ -210,6 +226,10 @@ void pool_send::parseData(const bytearray &data)
 {
     if(!data.empty()){
         const int *vals = reinterpret_cast<const int*>(data.data());
+        if(vals[0] == 0xFFFFFFFF){
+            mTimeStart = getNow();
+            return;
+        }
         std::cout << "exposure: " << vals[0] << "\n";
         std::cout << "quality:  " << vals[1] << "\n";
         mQuality = vals[1];
