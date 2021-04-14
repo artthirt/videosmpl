@@ -91,6 +91,8 @@ void pool_send::start()
 
 void pool_send::push_frame(const Mat& mat)
 {
+    if(!isSending())
+        return;
 	m_mutex.lock();
 	if(m_pool.size() > max_list_size){
 		m_mutex.unlock();

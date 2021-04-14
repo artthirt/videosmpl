@@ -39,6 +39,8 @@ struct Worker{
     std::queue< Mat > mBuffer;
     std::mutex mMutex;
     videov4l2 mVideo;
+    pool_send mPool;
+
 
     std::thread mThread;
 
@@ -47,6 +49,19 @@ struct Worker{
 
     ~Worker(){
         mThread.join();
+    }
+
+    void start(){
+        mPool.start();
+    }
+
+    template<typename T>
+    void setCntrl(T fun){
+        mPool.set_ctrl(fun);
+    }
+    template<typename T>
+    void push_frame(T m){
+        mPool.push_frame(m);
     }
 
     bool open(){
@@ -85,7 +100,7 @@ struct Worker{
     void do_work()
     {
         while(1){
-            if(mBuffer.size() > mMaxBufferCount){
+            if(mBuffer.size() > mMaxBufferCount || !mPool.isSending()){
                 std::this_thread::sleep_for(std::chrono::milliseconds(32));
                 continue;
             }
@@ -98,8 +113,8 @@ struct Worker{
             }
             double duration = getDuration(now);
 
-            if(duration < 32){
-                std::this_thread::sleep_for(std::chrono::milliseconds(32 - (int)duration));
+            if(duration < 16){
+                std::this_thread::sleep_for(std::chrono::milliseconds(16 - (int)duration));
             }
         }
     }
@@ -132,7 +147,6 @@ int main(int argc, char *argv[])
 
 	int id = 0;
 
-    pool_send pool;
     Worker worker;
 
     if(!worker.open())
@@ -142,15 +156,15 @@ int main(int argc, char *argv[])
     if(xml.isOpened()){
         string address = xml["address"];
         int port = xml["port"];
-        pool.set_address(address, port);
-        std::cout << "address: " << pool.address() << "\nport: " << pool.port() <<"\n";
+        worker.mPool.set_address(address, port);
+        std::cout << "address: " << worker.mPool.address() << "\nport: " << worker.mPool.port() <<"\n";
     }else{
         FileStorage xml("config.xml", FileStorage::WRITE);
-        xml << "address" << pool.address() << "port" << pool.port();
-        std::cout << "address: " << pool.address() << "\nport: " << pool.port() <<"\n";
+        xml << "address" << worker.mPool.address() << "port" << worker.mPool.port();
+        std::cout << "address: " << worker.mPool.address() << "\nport: " << worker.mPool.port() <<"\n";
     }
 
-    pool.start();
+    worker.start();
 
     worker.set_exposure(200);
 
@@ -159,7 +173,7 @@ int main(int argc, char *argv[])
         worker.set_exposure(val.exposure);
     };
 
-    pool.set_ctrl(fne);
+    worker.setCntrl(fne);
 
     double duration = 0;
 
@@ -179,12 +193,12 @@ int main(int argc, char *argv[])
             mat2 = 16 * mat;
             setLut(mat2, LUT);
             cv::cvtColor(mat2, mat2, cv::COLOR_BayerRG2BGR);
-            pool.push_frame(mat2);
+            worker.push_frame(mat2);
 
             duration = getDuration(now);
 
-            if(duration < 32){
-                std::this_thread::sleep_for(std::chrono::milliseconds(32 - (int)duration));
+            if(duration < 16){
+                std::this_thread::sleep_for(std::chrono::milliseconds(16 - (int)duration));
             }
 			id++;
         }

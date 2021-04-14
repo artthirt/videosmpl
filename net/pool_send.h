@@ -65,6 +65,10 @@ public:
 	void send_data(const bytearray& data);
 	void write_handler(boost::system::error_code error, size_t size);
 
+    bool isSending() const {
+        return mReceivePoint.port() != 0;
+    }
+
 private:
 	bool m_done;
     int mQuality = 50;
