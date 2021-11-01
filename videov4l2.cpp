@@ -50,6 +50,16 @@ const Res Resolutions[] = {
     Res(640, 480),
 };
 
+uint32_t make_fmt(char* fmt)
+{
+    union{
+        char c[4];
+        int v;
+    } res;
+    memcpy(res.c, fmt, 4);
+    return res.v;
+}
+
 bool videov4l2::open()
 {
     std::lock_guard<std::mutex> guard(mMutex);
@@ -69,7 +79,7 @@ bool videov4l2::open()
     fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     fmt.fmt.pix.width = r.w;
     fmt.fmt.pix.height = r.h;
-    fmt.fmt.pix.pixelformat = 0x30314742;//01GB;
+    fmt.fmt.pix.pixelformat = make_fmt("BG10");//01GB;
     fmt.fmt.pix.field = V4L2_FIELD_ANY;
     xioctl(mFd, VIDIOC_S_FMT, &fmt);
     mWidth = fmt.fmt.pix.width;
@@ -209,7 +219,7 @@ bool videov4l2::xioctl(int fd, int request, void *args)
     int r;
 
     do{
-        r = v4l2_ioctl(fd, request, args);
+        r = ioctl(fd, request, args);
     }while(r == -1 && ((errno == EINTR) || (errno == EAGAIN)));
 
     if(r == -1){
