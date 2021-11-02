@@ -67,7 +67,7 @@ bool videov4l2::open()
     if(mIsOpen)
         return true;
 
-    mFd = v4l2_open(mDev.c_str(), O_RDWR | O_NONBLOCK);
+    mFd = ::open(mDev.c_str(), O_RDWR | O_NONBLOCK);
 
     if(mFd < 0)
         return false;
@@ -145,7 +145,7 @@ void videov4l2::close()
 
         v4l2_buf_type type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
         xioctl(mFd, VIDIOC_STREAMOFF, &type);
-        v4l2_close(mFd);
+        ::close(mFd);
         mFd = 0;
     }
 }
