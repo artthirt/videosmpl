@@ -50,14 +50,11 @@ const Res Resolutions[] = {
     Res(640, 480),
 };
 
-uint32_t make_fmt(char* fmt)
+inline uint32_t make_fmt(char* fmt)
 {
-    union{
-        char c[4];
-        int v;
-    } res;
-    memcpy(res.c, fmt, 4);
-    return res.v;
+    uint32_t res = fmt[0] | (fmt[1] << 8) | (fmt[2] << 16) | (fmt[3] << 24);
+    //memcpy(&res, fmt, 4);
+    return res;
 }
 
 bool videov4l2::open()
